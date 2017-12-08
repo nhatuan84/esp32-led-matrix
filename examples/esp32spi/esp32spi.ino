@@ -12,7 +12,7 @@ LedMatrix ledMatrix = LedMatrix(NUMBER_OF_DEVICES, CLK_PIN, MISO_PIN, MOSI_PIN, 
   
 void setup() {
   ledMatrix.init();
-  ledMatrix.setText("EasyIoT");
+  ledMatrix.setText("IoTSharing.com");
 }
 
 void loop() {
