@@ -2,7 +2,9 @@ visit IOTSHARING.COM for more
 
 This library is only for MAX7219.
 
-the original version is for esp8266, I modified a little to adapt with esp32.
+the original version is for esp8266, nhatuan84 modified a little to adapt with esp32.
+
+I added support for 90 degree rotated displays
 
 Just clone the code and copy it Arduino/libraries folder
 
