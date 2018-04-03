@@ -12,6 +12,7 @@ LedMatrix ledMatrix = LedMatrix(NUMBER_OF_DEVICES, CLK_PIN, MISO_PIN, MOSI_PIN, 
   
 void setup() {
   ledMatrix.init();
+  ledMatrix.setAlternateDisplayOrientation(); // devices 90° right - comment out, if not needed
   ledMatrix.setText("IoTSharing.com");
 }
 
