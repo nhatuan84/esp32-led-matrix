@@ -62,10 +62,6 @@ void LedMatrix::setIntensity(const byte intensity) {
     sendByte(MAX7219_REG_INTENSITY, intensity);
 }
 
-void LedMatrix::setCharWidth(byte charWidth) {
-    myCharWidth = charWidth;
-}
-
 void LedMatrix::setTextAlignment(byte textAlignment) {
     myTextAlignment = textAlignment;
     calculateTextAlignmentOffset();
@@ -80,10 +76,10 @@ void LedMatrix::calculateTextAlignmentOffset() {
             myTextAlignmentOffset = myNumberOfDevices * 8;
             break;
         case TEXT_ALIGN_RIGHT:
-            myTextAlignmentOffset = myText.length() * myCharWidth - myNumberOfDevices * 8;
+            myTextAlignmentOffset = myTextLength - myNumberOfDevices * 8;
             break;
         case TEXT_ALIGN_RIGHT_END:
-            myTextAlignmentOffset = - myText.length() * myCharWidth;
+            myTextAlignmentOffset = - myTextLength;
             break;
     }
     
@@ -93,7 +89,6 @@ void LedMatrix::clear() {
     for (byte col = 0; col < myNumberOfDevices * 8; col++) {
         cols[col] = 0;
     }
-    
 }
 
 void LedMatrix::commit() {
@@ -120,6 +115,8 @@ void LedMatrix::commit() {
 void LedMatrix::setText(String text) {
     myText = text;
     myTextOffset = 0;
+    myTextLength = 0;
+    for (int i = 0; i < myText.length(); i++) myTextLength += cp437_width[(byte)myText.charAt(i)];
     calculateTextAlignmentOffset();
 }
 
@@ -128,20 +125,22 @@ void LedMatrix::setNextText(String nextText) {
 }
 
 void LedMatrix::scrollTextRight() {
-    myTextOffset = (myTextOffset + 1) % ((int)myText.length() * myCharWidth - 5);
+    myTextOffset = (myTextOffset + 1) % (myTextLength - 5);
 }
 
 void LedMatrix::scrollTextLeft() {
-    myTextOffset = (myTextOffset - 1) % ((int)myText.length() * myCharWidth + myNumberOfDevices * 8);
+    myTextOffset = (myTextOffset - 1) % (myTextLength + myNumberOfDevices * 8);
     if (myTextOffset == 0 && myNextText.length() > 0) {
         myText = myNextText;
         myNextText = "";
+        myTextLength = 0;
+        for (int i = 0; i < myText.length(); i++) myTextLength += cp437_width[(byte)myText.charAt(i)];
         calculateTextAlignmentOffset();
     }
 }
 
 void LedMatrix::oscillateText() {
-    int maxColumns = (int)myText.length() * myCharWidth;
+    int maxColumns = myTextLength;
     int maxDisplayColumns = myNumberOfDevices * 8;
     if (maxDisplayColumns > maxColumns) {
         return;
@@ -160,17 +159,45 @@ void LedMatrix::setAlternateDisplayOrientation() {
 }
 
 void LedMatrix::drawText() {
-    char letter;
-    int position = 0;
-    for (int i = 0; i < myText.length(); i++) {
-        letter = myText.charAt(i);
-        for (byte col = 0; col < 8; col++) {
-            position = i * myCharWidth + col + myTextOffset + myTextAlignmentOffset;
-            if (position >= 0 && position < myNumberOfDevices * 8) {
-                setColumn(position, pgm_read_byte (&cp437_font [letter] [col]));
-            }
-        }
+  boolean escaped = false;
+  char letter;
+  int  width;
+  int  pos0 = myTextOffset + myTextAlignmentOffset;
+  for (int i = 0; i < myText.length(); i++) {
+    letter = myText.charAt(i);
+    if (escaped)
+    {
+      switch ((byte)letter)
+      {
+        case 132: letter = (char)142;
+                  break;
+        case 150: letter = (char)153;
+                  break;
+        case 156: letter = (char)154;
+                  break;
+        case 164: letter = (char)132;
+                  break;
+        case 182: letter = (char)148;
+                  break;
+        case 188: letter = (char)129;
+                  break;
+        case 159: letter = (char)225;
+                  break;
+        default: break;
+      }
+      escaped = false;
     }
+    else escaped = ((byte)letter == 195 || (byte)letter == 194);
+    if (escaped) continue;
+    width = pgm_read_byte (&cp437_width[(byte)letter]);
+    for (byte col = 0; col < width; col++) {
+      int position = pos0 + col;
+      if (position >= 0 && position < myNumberOfDevices * 8 && col < 8) {
+        setColumn(position, pgm_read_byte (&cp437_font [letter] [col]));
+      }
+    }
+    pos0 += width;
+  }
 }
 
 void LedMatrix::setColumn(int column, byte value) {

@@ -44,12 +44,6 @@ public:
     void setIntensity(byte intensity);
     
     /**
-     * Sets the width in pixels for one character.
-     * Default is 7.
-     */
-    void setCharWidth(byte charWidth);
-    
-    /**
      * Sets the text alignment.
      * Default is TEXT_ALIGN_LEFT_END.
      *
@@ -128,12 +122,12 @@ private:
     byte spidata[8];
     String myText;
     String myNextText;
+    int myTextLength = 0;
     int myTextOffset = 1;
     int myTextAlignmentOffset = 0;
     int increment = -1;
     byte myNumberOfDevices = 0;
     byte mySlaveSelectPin = 0;
-    byte myCharWidth = 7;
     byte myTextAlignment = 1;
     byte myDisplayOrientation = 0;
     
