@@ -5,13 +5,10 @@
 /**
  * Heavily influenced by the code and the blog posts from https://github.com/nickgammon/MAX7219_Dot_Matrix
  */
-LedMatrix::LedMatrix(byte numberOfDevices, int8_t sck, int8_t miso, int8_t mosi, byte slaveSelectPin) {
+LedMatrix::LedMatrix(byte numberOfDevices, byte slaveSelectPin) {
     myNumberOfDevices = numberOfDevices;
     mySlaveSelectPin = slaveSelectPin;
     cols = new byte[numberOfDevices * 8];
-    _sck = sck;
-    _miso = miso;
-    _mosi = mosi;
 }
 
 /**
@@ -21,7 +18,7 @@ LedMatrix::LedMatrix(byte numberOfDevices, int8_t sck, int8_t miso, int8_t mosi,
 void LedMatrix::init() {
     pinMode(mySlaveSelectPin, OUTPUT);
     
-    SPI.begin ( _sck,  _miso,  _mosi,  mySlaveSelectPin);
+    SPI.begin ();
     SPI.setDataMode(SPI_MODE0);
     SPI.setClockDivider(SPI_CLOCK_DIV128);
     for(byte device = 0; device < myNumberOfDevices; device++) {
@@ -100,9 +97,24 @@ void LedMatrix::clear() {
 }
 
 void LedMatrix::commit() {
-    for (byte col = 0; col < myNumberOfDevices * 8; col++) {
-        sendByte(col / 8, col % 8 + 1, cols[col]);
+  if (myDisplayOrientation) {
+    for (byte dev = 0; dev < myNumberOfDevices; dev++) {
+      byte m[8] = {0};
+      for (byte col = 0; col < 8; col++) {
+        byte b = cols[dev*8+col];
+        for (byte bit = 0; bit < 8; bit++) {
+          if (b & 1) m[bit] |= (128>>col);
+          b >>= 1;
+        }
+      }
+      for (byte col = 0; col < 8; col++)
+        sendByte(dev, col + 1, m[col]);
     }
+  }
+  else {
+    for (byte col = 0; col < myNumberOfDevices * 8; col++)
+      sendByte(col / 8, col % 8 + 1, cols[col]);
+  }
 }
 
 void LedMatrix::setText(String text) {
@@ -141,6 +153,10 @@ void LedMatrix::oscillateText() {
         increment = -1;
     }
     myTextOffset += increment;
+}
+
+void LedMatrix::setAlternateDisplayOrientation() {
+    myDisplayOrientation = 1;
 }
 
 void LedMatrix::drawText() {
