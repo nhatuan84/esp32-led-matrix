@@ -120,6 +120,10 @@ void LedMatrix::setText(String text) {
     calculateTextAlignmentOffset();
 }
 
+int LedMatrix::getTextLength() {
+    return myTextLength;
+}
+
 void LedMatrix::setNextText(String nextText) {
     myNextText = nextText;
 }
@@ -159,37 +163,60 @@ void LedMatrix::setAlternateDisplayOrientation() {
 }
 
 void LedMatrix::drawText() {
-  boolean escaped = false;
-  char letter;
+  byte escape = 0;
+  byte letter;
+  uint32_t code;
   int  width;
   int  pos0 = myTextOffset + myTextAlignmentOffset;
   for (int i = 0; i < myText.length(); i++) {
-    letter = myText.charAt(i);
-    if (escaped)
+    letter = (byte)myText.charAt(i);
+    if (escape > 0)
     {
-      switch ((byte)letter)
-      {
-        case 132: letter = (char)142;
-                  break;
-        case 150: letter = (char)153;
-                  break;
-        case 156: letter = (char)154;
-                  break;
-        case 164: letter = (char)132;
-                  break;
-        case 182: letter = (char)148;
-                  break;
-        case 188: letter = (char)129;
-                  break;
-        case 159: letter = (char)225;
-                  break;
-        default: break;
-      }
-      escaped = false;
+      code = (code << 8) + letter;
+      escape--;
     }
-    else escaped = ((byte)letter == 195 || (byte)letter == 194);
-    if (escaped) continue;
-    width = pgm_read_byte (&cp437_width[(byte)letter]);
+    else if (letter == 226)
+    {
+      code = letter;
+      escape = 2;
+    }
+    else if (letter == 194 || letter == 195)
+    {
+      code = letter;
+      escape = 1;
+    }
+    else code = letter;
+    if (escape > 0) continue;
+    switch (code)
+    {
+      case 0xc280:
+      case 0xe282ac: letter = 238; // Epsilon = Euro
+                      break;
+      case 0xc384: letter = 142; // Ä
+                    break;
+      case 0xc396: letter = 153; // Ö
+                    break;
+      case 0xc39c: letter = 154; // Ü
+                    break;
+      case 0xc39f: letter = 225; // ß
+                    break;
+      case 0xc2a0: letter = 32;  // Blank
+                    break;
+      case 0xc3a4: letter = 132; // ä
+                    break;
+      case 0xc2b0: letter = 248; // °
+                    break;
+      case 0xc3b6: letter = 148; // ö
+                    break;
+      case 0xc3bc: letter = 129; // ü
+                    break;
+      case 0xe28093: letter = 196; // long -
+                     break;
+      default: if (code < 256) letter = code;
+                else letter = 32;
+                break;
+    }
+    width = pgm_read_byte (&cp437_width[letter]);
     for (byte col = 0; col < width; col++) {
       int position = pos0 + col;
       if (position >= 0 && position < myNumberOfDevices * 8 && col < 8) {

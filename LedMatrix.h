@@ -87,6 +87,11 @@ public:
     void setNextText(String nextText);
     
     /**
+     * Get number of columns of Text (Pixel).
+     */
+    int getTextLength();
+
+    /**
      * Set a specific column with a byte value to the framebuffer.
      */
     void setColumn(int column, byte value);
