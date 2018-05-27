@@ -31,31 +31,23 @@ void LedMatrix::init() {
 }
 
 void LedMatrix::sendByte (const byte device, const byte reg, const byte data) {
-    int offset=device;
-    int maxbytes=myNumberOfDevices;
-    
-    for(int i=0;i<maxbytes;i++) {
-        spidata[i] = (byte)0;
-        spiregister[i] = (byte)0;
-    }
-    // put our device data into the array
-    spiregister[offset] = reg;
-    spidata[offset] = data;
-    // enable the line
     digitalWrite(mySlaveSelectPin,LOW);
-    // now shift out the data
-    for(int i=0;i<myNumberOfDevices;i++) {
-        SPI.transfer (spiregister[i]);
-        SPI.transfer (spidata[i]);
+    for (int i=0; i<myNumberOfDevices; i++)
+    {
+      SPI.transfer ((i==device)?reg:(byte)0);
+      SPI.transfer ((i==device)?data:(byte)0);      
     }
-    digitalWrite (mySlaveSelectPin, HIGH);
-    
+    digitalWrite (mySlaveSelectPin, HIGH);    
 }
 
 void LedMatrix::sendByte (const byte reg, const byte data) {
-    for(byte device = 0; device < myNumberOfDevices; device++) {
-        sendByte(device, reg, data);
+    digitalWrite(mySlaveSelectPin,LOW);
+    for (int i=0; i<myNumberOfDevices; i++)
+    {
+      SPI.transfer (reg);
+      SPI.transfer (data);      
     }
+    digitalWrite (mySlaveSelectPin, HIGH);    
 }
 
 void LedMatrix::setIntensity(const byte intensity) {

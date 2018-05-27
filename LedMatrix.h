@@ -123,8 +123,6 @@ public:
     
 private:
     byte* cols;
-    byte spiregister[8];
-    byte spidata[8];
     String myText;
     String myNextText;
     int myTextLength = 0;
