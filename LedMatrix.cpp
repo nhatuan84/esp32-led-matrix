@@ -85,22 +85,28 @@ void LedMatrix::clear() {
 
 void LedMatrix::commit() {
   if (myDisplayOrientation) {
-    for (byte dev = 0; dev < myNumberOfDevices; dev++) {
-      byte m[8] = {0};
-      for (byte col = 0; col < 8; col++) {
-        byte b = cols[dev*8+col];
-        for (byte bit = 0; bit < 8; bit++) {
-          if (b & 1) m[bit] |= (128>>col);
-          b >>= 1;
-        }
+    for (byte dcol=0; dcol < 8; dcol++) {
+      digitalWrite(mySlaveSelectPin,LOW);
+      for (int dev=0; dev < myNumberOfDevices; dev++) {
+        byte b = 0;
+        for (byte fcol=0; fcol < 8; fcol++)
+          if (cols[dev*8+fcol]&(1<<dcol))
+            b |= (128>>fcol);
+        SPI.transfer(dcol+1);
+        SPI.transfer(b);
       }
-      for (byte col = 0; col < 8; col++)
-        sendByte(dev, col + 1, m[col]);
+      digitalWrite(mySlaveSelectPin,HIGH);
     }
   }
   else {
-    for (byte col = 0; col < myNumberOfDevices * 8; col++)
-      sendByte(col / 8, col % 8 + 1, cols[col]);
+    for (byte col=0; col < 8; col++) {
+      digitalWrite(mySlaveSelectPin,LOW);
+      for (int dev=0; dev < myNumberOfDevices; dev++) {
+        SPI.transfer(col+1);
+        SPI.transfer(cols[dev*8+col]);
+      }
+      digitalWrite(mySlaveSelectPin,HIGH);
+    }
   }
 }
 
@@ -150,8 +156,8 @@ void LedMatrix::oscillateText() {
     myTextOffset += increment;
 }
 
-void LedMatrix::setAlternateDisplayOrientation() {
-    myDisplayOrientation = 1;
+void LedMatrix::setAlternateDisplayOrientation(byte x) {
+    myDisplayOrientation = x;
 }
 
 void LedMatrix::drawText() {
