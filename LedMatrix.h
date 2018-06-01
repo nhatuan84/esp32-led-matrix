@@ -20,72 +20,73 @@
 #define TEXT_ALIGN_LEFT_END      1 // Beginning of text is just outside the right end of the display
 #define TEXT_ALIGN_RIGHT         2 // End of text is aligned to the right of the display
 #define TEXT_ALIGN_RIGHT_END     3 // End of text is just outside the left side of the display
+#define TEXT_ALIGN_CENTER        4 // Mid of text is just middle of the display
 
 class LedMatrix {
-    
+
 public:
-    
+
     /**
      * Constructor.
      * numberOfDisplays: number of connected devices
      * slaveSelectPin: CS (or SS) pin connected to your ESP8266
      */
     LedMatrix(byte numberOfDisplays, byte slaveSelectPin);
-    
+
     /**
      * Initializes the SPI interface
      */
     void init();
-    
+
     /**
      * Sets the intensity on all devices.
      * intensity: 0-15
      */
     void setIntensity(byte intensity);
-    
+
     /**
      * Sets the text alignment.
      * Default is TEXT_ALIGN_LEFT_END.
      *
      */
     void setTextAlignment(byte textAlignment);
-    
+
     /**
      * Send a byte to a specific device.
      */
     void sendByte (const byte device, const byte reg, const byte data);
-    
+
     /**
      * Send a byte to all devices (convenience method).
      */
     void sendByte (const byte reg, const byte data);
-    
+
     /**
      * Turn on pixel at position (x,y).
      */
     void setPixel(byte x, byte y);
-    
+
     /**
      * Clear the frame buffer.
      */
     void clear();
-    
+
     /**
      * Draw the currently set text at the current offset.
      */
     void drawText();
-    
+
     /**
      * Set the current text.
      */
     void setText(String text);
-    
+
     /**
      * Set the text that will replace the current text after a complete scroll
      * cycle.
      */
     void setNextText(String nextText);
-    
+
     /**
      * Get number of columns of Text (Pixel).
      */
@@ -95,32 +96,32 @@ public:
      * Set a specific column with a byte value to the framebuffer.
      */
     void setColumn(int column, byte value);
-    
+
     /**
      * Writes the framebuffer to the displays.
      */
     void commit();
-    
+
     /**
      * Scroll the text to the right.
      */
     void scrollTextRight();
-    
+
     /**
      * Scroll the text to the left.
      */
     void scrollTextLeft();
-    
+
     /**
      * Oscilate the text between the two limits.
      */
     void oscillateText();
-    
+
     /**
      * Display is mounted 90 degree right.
      */
-    void setAlternateDisplayOrientation();
-    
+    void setAlternateDisplayOrientation(byte x = 1);
+
 private:
     byte* cols;
     String myText;
@@ -133,6 +134,6 @@ private:
     byte mySlaveSelectPin = 0;
     byte myTextAlignment = 1;
     byte myDisplayOrientation = 0;
-    
+
     void calculateTextAlignmentOffset();
 };

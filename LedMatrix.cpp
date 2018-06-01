@@ -17,7 +17,7 @@ LedMatrix::LedMatrix(byte numberOfDevices, byte slaveSelectPin) {
  */
 void LedMatrix::init() {
     pinMode(mySlaveSelectPin, OUTPUT);
-    
+
     SPI.begin ();
     SPI.setDataMode(SPI_MODE0);
     SPI.setClockDivider(SPI_CLOCK_DIV128);
@@ -35,9 +35,9 @@ void LedMatrix::sendByte (const byte device, const byte reg, const byte data) {
     for (int i=0; i<myNumberOfDevices; i++)
     {
       SPI.transfer ((i==device)?reg:(byte)0);
-      SPI.transfer ((i==device)?data:(byte)0);      
+      SPI.transfer ((i==device)?data:(byte)0);
     }
-    digitalWrite (mySlaveSelectPin, HIGH);    
+    digitalWrite (mySlaveSelectPin, HIGH);
 }
 
 void LedMatrix::sendByte (const byte reg, const byte data) {
@@ -45,9 +45,9 @@ void LedMatrix::sendByte (const byte reg, const byte data) {
     for (int i=0; i<myNumberOfDevices; i++)
     {
       SPI.transfer (reg);
-      SPI.transfer (data);      
+      SPI.transfer (data);
     }
-    digitalWrite (mySlaveSelectPin, HIGH);    
+    digitalWrite (mySlaveSelectPin, HIGH);
 }
 
 void LedMatrix::setIntensity(const byte intensity) {
@@ -73,8 +73,11 @@ void LedMatrix::calculateTextAlignmentOffset() {
         case TEXT_ALIGN_RIGHT_END:
             myTextAlignmentOffset = - myTextLength;
             break;
+        case TEXT_ALIGN_CENTER:
+            myTextAlignmentOffset = (myNumberOfDevices * 8 - myTextLength) / 2;
+            break;
     }
-    
+
 }
 
 void LedMatrix::clear() {
