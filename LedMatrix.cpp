@@ -5,13 +5,10 @@
 /**
  * Heavily influenced by the code and the blog posts from https://github.com/nickgammon/MAX7219_Dot_Matrix
  */
-LedMatrix::LedMatrix(byte numberOfDevices, int8_t sck, int8_t miso, int8_t mosi, byte slaveSelectPin) {
+LedMatrix::LedMatrix(byte numberOfDevices, byte slaveSelectPin) {
     myNumberOfDevices = numberOfDevices;
     mySlaveSelectPin = slaveSelectPin;
     cols = new byte[numberOfDevices * 8];
-    _sck = sck;
-    _miso = miso;
-    _mosi = mosi;
 }
 
 /**
@@ -20,8 +17,8 @@ LedMatrix::LedMatrix(byte numberOfDevices, int8_t sck, int8_t miso, int8_t mosi,
  */
 void LedMatrix::init() {
     pinMode(mySlaveSelectPin, OUTPUT);
-    
-    SPI.begin ( _sck,  _miso,  _mosi,  mySlaveSelectPin);
+
+    SPI.begin ();
     SPI.setDataMode(SPI_MODE0);
     SPI.setClockDivider(SPI_CLOCK_DIV128);
     for(byte device = 0; device < myNumberOfDevices; device++) {
@@ -34,39 +31,27 @@ void LedMatrix::init() {
 }
 
 void LedMatrix::sendByte (const byte device, const byte reg, const byte data) {
-    int offset=device;
-    int maxbytes=myNumberOfDevices;
-    
-    for(int i=0;i<maxbytes;i++) {
-        spidata[i] = (byte)0;
-        spiregister[i] = (byte)0;
-    }
-    // put our device data into the array
-    spiregister[offset] = reg;
-    spidata[offset] = data;
-    // enable the line
     digitalWrite(mySlaveSelectPin,LOW);
-    // now shift out the data
-    for(int i=0;i<myNumberOfDevices;i++) {
-        SPI.transfer (spiregister[i]);
-        SPI.transfer (spidata[i]);
+    for (int i=0; i<myNumberOfDevices; i++)
+    {
+      SPI.transfer ((i==device)?reg:(byte)0);
+      SPI.transfer ((i==device)?data:(byte)0);
     }
     digitalWrite (mySlaveSelectPin, HIGH);
-    
 }
 
 void LedMatrix::sendByte (const byte reg, const byte data) {
-    for(byte device = 0; device < myNumberOfDevices; device++) {
-        sendByte(device, reg, data);
+    digitalWrite(mySlaveSelectPin,LOW);
+    for (int i=0; i<myNumberOfDevices; i++)
+    {
+      SPI.transfer (reg);
+      SPI.transfer (data);
     }
+    digitalWrite (mySlaveSelectPin, HIGH);
 }
 
 void LedMatrix::setIntensity(const byte intensity) {
     sendByte(MAX7219_REG_INTENSITY, intensity);
-}
-
-void LedMatrix::setCharWidth(byte charWidth) {
-    myCharWidth = charWidth;
 }
 
 void LedMatrix::setTextAlignment(byte textAlignment) {
@@ -83,32 +68,61 @@ void LedMatrix::calculateTextAlignmentOffset() {
             myTextAlignmentOffset = myNumberOfDevices * 8;
             break;
         case TEXT_ALIGN_RIGHT:
-            myTextAlignmentOffset = myText.length() * myCharWidth - myNumberOfDevices * 8;
+            myTextAlignmentOffset = myTextLength - myNumberOfDevices * 8;
             break;
         case TEXT_ALIGN_RIGHT_END:
-            myTextAlignmentOffset = - myText.length() * myCharWidth;
+            myTextAlignmentOffset = - myTextLength;
+            break;
+        case TEXT_ALIGN_CENTER:
+            myTextAlignmentOffset = (myNumberOfDevices * 8 - myTextLength) / 2;
             break;
     }
-    
+
 }
 
 void LedMatrix::clear() {
     for (byte col = 0; col < myNumberOfDevices * 8; col++) {
         cols[col] = 0;
     }
-    
 }
 
 void LedMatrix::commit() {
-    for (byte col = 0; col < myNumberOfDevices * 8; col++) {
-        sendByte(col / 8, col % 8 + 1, cols[col]);
+  if (myDisplayOrientation) {
+    for (byte dcol=0; dcol < 8; dcol++) {
+      digitalWrite(mySlaveSelectPin,LOW);
+      for (int dev=0; dev < myNumberOfDevices; dev++) {
+        byte b = 0;
+        for (byte fcol=0; fcol < 8; fcol++)
+          if (cols[dev*8+fcol]&(1<<dcol))
+            b |= (128>>fcol);
+        SPI.transfer(dcol+1);
+        SPI.transfer(b);
+      }
+      digitalWrite(mySlaveSelectPin,HIGH);
     }
+  }
+  else {
+    for (byte col=0; col < 8; col++) {
+      digitalWrite(mySlaveSelectPin,LOW);
+      for (int dev=0; dev < myNumberOfDevices; dev++) {
+        SPI.transfer(col+1);
+        SPI.transfer(cols[dev*8+col]);
+      }
+      digitalWrite(mySlaveSelectPin,HIGH);
+    }
+  }
 }
 
 void LedMatrix::setText(String text) {
     myText = text;
     myTextOffset = 0;
+    myTextLength = 0;
+    for (int i = 0; i < myText.length(); i++) myTextLength += cp437_width[(byte)myText.charAt(i)];
     calculateTextAlignmentOffset();
+}
+
+int LedMatrix::getTextLength() {
+    return myTextLength;
 }
 
 void LedMatrix::setNextText(String nextText) {
@@ -116,20 +130,22 @@ void LedMatrix::setNextText(String nextText) {
 }
 
 void LedMatrix::scrollTextRight() {
-    myTextOffset = (myTextOffset + 1) % ((int)myText.length() * myCharWidth - 5);
+    myTextOffset = (myTextOffset + 1) % (myTextLength - 5);
 }
 
 void LedMatrix::scrollTextLeft() {
-    myTextOffset = (myTextOffset - 1) % ((int)myText.length() * myCharWidth + myNumberOfDevices * 8);
+    myTextOffset = (myTextOffset - 1) % (myTextLength + myNumberOfDevices * 8);
     if (myTextOffset == 0 && myNextText.length() > 0) {
         myText = myNextText;
         myNextText = "";
+        myTextLength = 0;
+        for (int i = 0; i < myText.length(); i++) myTextLength += cp437_width[(byte)myText.charAt(i)];
         calculateTextAlignmentOffset();
     }
 }
 
 void LedMatrix::oscillateText() {
-    int maxColumns = (int)myText.length() * myCharWidth;
+    int maxColumns = myTextLength;
     int maxDisplayColumns = myNumberOfDevices * 8;
     if (maxDisplayColumns > maxColumns) {
         return;
@@ -143,18 +159,73 @@ void LedMatrix::oscillateText() {
     myTextOffset += increment;
 }
 
+void LedMatrix::setAlternateDisplayOrientation(byte x) {
+    myDisplayOrientation = x;
+}
+
 void LedMatrix::drawText() {
-    char letter;
-    int position = 0;
-    for (int i = 0; i < myText.length(); i++) {
-        letter = myText.charAt(i);
-        for (byte col = 0; col < 8; col++) {
-            position = i * myCharWidth + col + myTextOffset + myTextAlignmentOffset;
-            if (position >= 0 && position < myNumberOfDevices * 8) {
-                setColumn(position, pgm_read_byte (&cp437_font [letter] [col]));
-            }
-        }
+  byte escape = 0;
+  byte letter;
+  uint32_t code;
+  int  width;
+  int  pos0 = myTextOffset + myTextAlignmentOffset;
+  for (int i = 0; i < myText.length(); i++) {
+    letter = (byte)myText.charAt(i);
+    if (escape > 0)
+    {
+      code = (code << 8) + letter;
+      escape--;
     }
+    else if (letter == 226)
+    {
+      code = letter;
+      escape = 2;
+    }
+    else if (letter == 194 || letter == 195)
+    {
+      code = letter;
+      escape = 1;
+    }
+    else code = letter;
+    if (escape > 0) continue;
+    switch (code)
+    {
+      case 0xc280:
+      case 0xe282ac: letter = 238; // Epsilon = Euro
+                      break;
+      case 0xc384: letter = 142; // Ä
+                    break;
+      case 0xc396: letter = 153; // Ö
+                    break;
+      case 0xc39c: letter = 154; // Ü
+                    break;
+      case 0xc39f: letter = 225; // ß
+                    break;
+      case 0xc2a0: letter = 32;  // Blank
+                    break;
+      case 0xc3a4: letter = 132; // ä
+                    break;
+      case 0xc2b0: letter = 248; // °
+                    break;
+      case 0xc3b6: letter = 148; // ö
+                    break;
+      case 0xc3bc: letter = 129; // ü
+                    break;
+      case 0xe28093: letter = 196; // long -
+                     break;
+      default: if (code < 256) letter = code;
+                else letter = 32;
+                break;
+    }
+    width = pgm_read_byte (&cp437_width[letter]);
+    for (byte col = 0; col < width; col++) {
+      int position = pos0 + col;
+      if (position >= 0 && position < myNumberOfDevices * 8 && col < 8) {
+        setColumn(position, pgm_read_byte (&cp437_font [letter] [col]));
+      }
+    }
+    pos0 += width;
+  }
 }
 
 void LedMatrix::setColumn(int column, byte value) {
